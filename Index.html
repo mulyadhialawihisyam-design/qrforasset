@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk QR Generator - Asset Tag Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .terminal-style { font-family: 'Courier New', Courier, monospace; }
+        
+        /* Pengaturan Khusus Cetak PDF */
+        @media print {
+            body { background: white; p: 0; }
+            .no-print { display: none !important; }
+            #resultContainer { 
+                display: grid !important; 
+                grid-template-columns: repeat(2, 1fr) !important; /* 2 Kolom per baris */
+                gap: 10px !important;
+                padding: 0 !important;
+            }
+            .qr-item { 
+                width: 7cm !important; 
+                height: 3cm !important; 
+                border: 1px solid #000 !important; 
+                break-inside: avoid;
+                margin-bottom: 5px;
+                display: flex !important;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px !important;
+                color: black !important;
+            }
+            .qr-text { font-size: 10pt !important; }
+        }
+
+        /* Tampilan di Layar Web */
+        .qr-item {
+            width: 7cm;
+            height: 3cm;
+            background: white;
+            color: black;
+            border: 2px solid #ccc;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-green-400 p-5 terminal-style">
+
+    <div class="max-w-4xl mx-auto bg-gray-800 p-6 rounded-lg shadow-xl border border-green-900 no-print">
+        <h1 class="text-2xl mb-4 border-b border-green-700 pb-2 text-center uppercase tracking-widest">ASSET QR GENERATOR</h1>
+        
+        <div class="no-print">
+            <label class="block mb-2">Masukkan Daftar Aset (Satu per baris):</label>
+            <textarea id="inputText" rows="6" class="w-full bg-black text-green-500 border border-green-700 p-3 rounded focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Contoh:&#10;12506063 M Rival&#10;12508028 Ade Maulana"></textarea>
+            
+            <div class="mt-4 flex flex-wrap gap-2">
+                <button onclick="generateQRs()" class="flex-1 bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition">
+                    GENERATE QR
+                </button>
+                <button id="copyBtn" onclick="copyForSheet()" class="hidden bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition">
+                    SALIN KE SHEET
+                </button>
+                <button onclick="window.print()" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition">
+                    CETAK PDF (7cm)
+                </button>
+            </div>
+            <p id="copyStatus" class="mt-2 text-sm text-yellow-500 hidden text-center italic font-bold">Berhasil disalin! Paste di Kolom A Google Sheets.</p>
+        </div>
+    </div>
+
+    <!-- Container Hasil -->
+    <div id="resultContainer" class="mt-8 flex flex-wrap justify-center gap-4">
+        <!-- QR Code akan muncul di sini -->
+    </div>
+
+    <script>
+        function generateQRs() {
+            const input = document.getElementById('inputText').value;
+            const container = document.getElementById('resultContainer');
+            const copyBtn = document.getElementById('copyBtn');
+            const lines = input.split('\n').filter(line => line.trim() !== "");
+
+            container.innerHTML = ""; 
+
+            if (lines.length === 0) {
+                alert("Data kosong!");
+                return;
+            }
+
+            lines.forEach((text, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "qr-item p-2 flex items-center justify-between rounded shadow-sm";
+                
+                const label = document.createElement('span');
+                label.className = "qr-text font-bold flex-1 pr-2 uppercase leading-tight";
+                label.innerText = text;
+                
+                const qrDiv = document.createElement('div');
+                qrDiv.id = "qr-" + index;
+
+                itemDiv.appendChild(label);
+                itemDiv.appendChild(qrDiv);
+                container.appendChild(itemDiv);
+
+                new QRCode(qrDiv, {
+                    text: text,
+                    width: 80, // Ukuran QR dalam pixel agar muat di 3cm
+                    height: 80
+                });
+            });
+
+            copyBtn.classList.remove('hidden');
+        }
+
+        function copyForSheet() {
+            const input = document.getElementById('inputText').value;
+            const lines = input.split('\n').filter(line => line.trim() !== "");
+            const status = document.getElementById('copyStatus');
+
+            let copyText = "";
+            lines.forEach(text => {
+                const cleanText = text.trim();
+                // Menggunakan api.qrserver.com karena lebih stabil di Google Sheets
+                const qrFormula = `=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" & ENCODEURL("${cleanText}"))`;
+                copyText += `${cleanText}\t${qrFormula}\n`;
+            });
+
+            const tempInput = document.createElement("textarea");
+            document.body.appendChild(tempInput);
+            tempInput.value = copyText;
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            status.classList.remove('hidden');
+            setTimeout(() => { status.classList.add('hidden'); }, 3000);
+        }
+    </script>
+</body>
+</html>
